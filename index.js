@@ -13,7 +13,10 @@ const Port = process.env.PORT;
 const getAuthClient = async () => {
   try {
     const auth = new google.auth.GoogleAuth({
-      keyFile: "credentials.json",
+      credentials: {
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY,
+      },
       scopes: "https://www.googleapis.com/auth/spreadsheets",
     });
     return await auth.getClient();
@@ -115,6 +118,7 @@ app.post("/", async (req, res) => {
 });
 
 // API Endpoint to read data from googlesheet
+// API Endpoint to read data from googlesheet
 app.get("/get-students", async (req, res) => {
   try {
     const data = await readStudentsData();
@@ -122,12 +126,41 @@ app.get("/get-students", async (req, res) => {
     if (!data || data.length === 0) {
       return res.status(404).send("No record found");
     }
+
+    const authClientObject = await getAuthClient();
+    const googleSheetsInstance = google.sheets({
+      version: "v4",
+      auth: authClientObject,
+    });
+
+    const updatedData = [];
+
+    for (let i = 0; i < data.length; i++) {
+      const [studentId, name, email] = data[i];
+
+      if (!email) {
+        const tempEmail = `${name}_${studentId}@our-school.com`;
+        updatedData.push([studentId, name, tempEmail]);
+
+        // Correctly update email in googlesheet by sending values in the request body
+        await googleSheetsInstance.spreadsheets.values.update({
+          spreadsheetId,
+          range: `Students!C${i + 2}`, 
+          valueInputOption: "USER_ENTERED",
+          resource: {
+            values: [[tempEmail]], 
+          },
+        });
+      }
+    }
+
     res.status(200).json({ students: data });
   } catch (error) {
     console.error("Error", error);
     res.status(500).send("An error occurred while reading data");
   }
 });
+
 
 // Port on which server is listening
 app.listen(Port, () => {
