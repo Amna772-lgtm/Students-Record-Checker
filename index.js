@@ -6,6 +6,7 @@ const {
 } = require("./googleSheetHelper");
 
 const { checkDuplicateEmail } = require("./slackHelper");
+const { retryMech } = require("./retryMechanism");
 
 const dotenv = require("dotenv");
 const app = express();
@@ -25,7 +26,7 @@ app.post("/", async (req, res) => {
     }
 
     // Call the function to write data to Google Sheets
-    await writeStudentsData([studentId, name, email]);
+    await retryMech(() => writeStudentsData([studentId, name, email]));
 
     res.status(200).send("Data added successfully");
   } catch (error) {
@@ -37,17 +38,17 @@ app.post("/", async (req, res) => {
 // API Endpoint to read data from googlesheet
 app.get("/get-students", async (req, res) => {
   try {
-    const data = await readStudentsData();
+    const data = await retryMech(() => readStudentsData());
 
     if (!data || data.length === 0) {
       return res.status(404).send("No record found");
     }
 
     // Use the helper function to update missing emails
-    await updateTempEmail(data);
+    await retryMech(() => updateTempEmail(data));
 
     // Use helper function to check duplicate emails
-    await checkDuplicateEmail(data);
+    await retryMech(() => checkDuplicateEmail(data));
 
     res.status(200).json({ students: data });
   } catch (error) {
