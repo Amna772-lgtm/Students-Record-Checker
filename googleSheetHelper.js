@@ -1,6 +1,7 @@
 const { google } = require("googleapis");
 const dotenv = require("dotenv");
 
+const { sendSlackMsg } = require("./slackHelper");
 dotenv.config();
 
 const spreadsheetId = process.env.GOOGLE_SHEET_ID;
@@ -20,7 +21,6 @@ const getAuthClient = async () => {
     console.error("Error during authentication", error);
   }
 };
-
 
 // Write data in google sheets
 const writeStudentsData = async (values) => {
@@ -113,6 +113,11 @@ const updateTempEmail = async (data) => {
         const tempEmail = `${name}_${studentId}@our-school.com`;
         updatedData.push([studentId, name, tempEmail]);
 
+        const message = `Missing email for Student ID: ${studentId}, Name: ${name}. Assigned temporary email: ${tempEmail}`;
+
+        // Send message to slack channel
+        await sendSlackMsg(message);
+
         // Correctly update email in googlesheet by sending values in the request body
         await googleSheetsInstance.spreadsheets.values.update({
           spreadsheetId,
@@ -124,7 +129,6 @@ const updateTempEmail = async (data) => {
         });
       }
     }
-    
   } catch (error) {
     console.error("An error occurred while updating email", error);
   }

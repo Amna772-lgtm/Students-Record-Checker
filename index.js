@@ -5,6 +5,8 @@ const {
   updateTempEmail,
 } = require("./googleSheetHelper");
 
+const { checkDuplicateEmail } = require("./slackHelper");
+
 const dotenv = require("dotenv");
 const app = express();
 
@@ -43,6 +45,9 @@ app.get("/get-students", async (req, res) => {
 
     // Use the helper function to update missing emails
     await updateTempEmail(data);
+
+    // Use helper function to check duplicate emails
+    await checkDuplicateEmail(data);
 
     res.status(200).json({ students: data });
   } catch (error) {
